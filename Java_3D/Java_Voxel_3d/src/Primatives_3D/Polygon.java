@@ -1,8 +1,7 @@
 package Primatives_3D;
 
-import java.util.Random;
-
 import Rotation_3D.AngleHandler;
+import java.util.Random;
 
 public class Polygon {
     
@@ -41,7 +40,6 @@ public class Polygon {
         if ((v < 0 && Math.abs(v) > epsilon) || (u + v > 1 && Math.abs(u + v - 1) > epsilon)) return false;
 
         double t = invDet * e2.copy().dot(s_cross_e1);
-        if(t > epsilon) return true;
-        return false;
+        return t > epsilon;
     }
 }

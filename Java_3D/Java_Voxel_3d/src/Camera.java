@@ -6,10 +6,10 @@ import Primatives_3D.Raycast;
 import Primatives_3D.ShapeMaker;
 import Primatives_3D.Vector3D;
 import Rotation_3D.AngleHandler;
+import Rotation_3D.AxisAngle;
 import Rotation_3D.Quaternion;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Timer;
 import java.util.TimerTask;
 import javax.swing.JFrame;
@@ -20,7 +20,7 @@ public class Camera {
     public static Quaternion forward = new Quaternion(1, 0, 0, 0);
     public static final int resolution = 5;
     public static final int screenWidth = 800;
-    public static final int screenHeight = 500;
+    public static final int screenHeight = 800;
     public static final double aspectRatio = screenWidth / screenHeight;
     public static final int FPS = 60;
     public static PixelPainter painter = new PixelPainter(screenWidth, screenHeight);
@@ -33,7 +33,7 @@ public class Camera {
 
     public static void rotateBy(Quaternion direction){
         keyPressed = true;
-        forward = AngleHandler.mult(direction, forward);
+        forward = AngleHandler.mult(forward, direction);
     }
 
     public static void moveBy(Vector3D vec){
@@ -56,7 +56,7 @@ public class Camera {
 
     public static void startRenderer(){
 
-        polys = ShapeMaker.addToArrayList(ShapeMaker.getCube(-10, -10, -10, 20, 20, 20), polys);
+        polys = ShapeMaker.addToArrayList(ShapeMaker.getCube(-25, -25, -25, 50, 50, 50), polys);
         JFrame f = new JFrame();
         JPanel p = new JPanel();  
         
@@ -82,8 +82,10 @@ public class Camera {
     public static void update(){
         keyPressed = false;
         castRays();
-        // roughly, q1 affects y, q2 affects x, and q3 affects zx
-        rotateBy(new Quaternion(50, 2*mouseL.getMovedY()/FPS, 4*mouseL.getMovedX()/FPS, 0));
+        // Not this this is very wrong -> roughly, q1 affects y, q2 affects x, and q3 affects zx
+        //rotateBy(new Quaternion(50, 2*mouseL.getMovedY()/FPS, 4*mouseL.getMovedX()/FPS, 0));
+        rotateBy(AngleHandler.asQuaternion(new AxisAngle(mouseL.getMovedX() / FPS, 0, 1, 0)));
+        rotateBy(AngleHandler.asQuaternion(new AxisAngle(mouseL.getMovedY() / FPS, 1, 0, 0)));
         if(keyboardL.keyIsDown(87)) {moveByLocal(0, 0, 0.5); keyPressed = true;}
         if(keyboardL.keyIsDown(83)) {moveByLocal(0, 0, -0.5); keyPressed = true;}
         if(keyboardL.keyIsDown(65)) {moveByLocal(-0.005, 0, 0); keyPressed = true;}
@@ -108,12 +110,7 @@ public class Camera {
 
 
     private static void sortPolys(){
-        Collections.sort(polys, new Comparator<Polygon>() {
-            @Override
-            public int compare(Polygon p1, Polygon p2) {
-                return Double.compare(distToPoly(p1), distToPoly(p1));
-            }
-        });
+        Collections.sort(polys, (Polygon p1, Polygon p2) -> Double.compare(distToPoly(p1), distToPoly(p1)));
         //Collections.sort(polys, (p1, p2) -> distToPoly(p1).compareTo(distToPoly(p2)));
     }
 
@@ -174,7 +171,7 @@ public class Camera {
 
     private static Raycast getRay(int x, int y){
         //return new Raycast(position.copy().add(AngleHandler.getRotated(new Vector3D(x, y, 0), forward)), forward);
-        return new Raycast(position.copy(), AngleHandler.mult(forward, new Quaternion(10, ((double)y / (screenHeight/resolution)) * aspectRatio, ((double)x / (screenWidth/resolution)), 0)));
+        return new Raycast(position.copy(), AngleHandler.mult(new Quaternion(10, ((double)y / (screenHeight/resolution)) / aspectRatio, ((double)x / (screenWidth/resolution)), 0), forward));
     }   
 
     private static int[] cast(Raycast ray){
