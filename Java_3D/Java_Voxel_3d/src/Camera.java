@@ -26,10 +26,10 @@ public class Camera {
     public static Vector3D position = new Vector3D(0, 0, 0);
     public static AxisAngle forward = new AxisAngle(0, 1, 0, 0);
     public static final int resolution = 5;
-    public static final int screenWidth = 800;
-    public static final int screenHeight = 800;
+    public static final int screenWidth = 1200;
+    public static final int screenHeight = 600;
     public static final double aspectRatio = screenWidth / screenHeight;
-    public static final int FPS = 20;
+    public static final int FPS = 60;
     public static final int FPSScaling = 60/FPS;
     public static PixelPainter painter = new PixelPainter(screenWidth, screenHeight);
     public static ArrayList<Polygon> polys = new ArrayList<>();
@@ -41,6 +41,7 @@ public class Camera {
             cursorImg, new Point(0, 0), "blank cursor");
     private static final KeyInputListener keyboardL = new KeyInputListener();      
     private static final MouseInputListener mouseL = new MouseInputListener();
+
     private static Robot mouseLocker;
     private static boolean isMouseLocked = false;
     private static final int[] defaultReturn = new int[3];
@@ -76,7 +77,8 @@ public class Camera {
 
     public static void startRenderer(){
 
-        polys = ShapeMaker.addToArrayList(ShapeMaker.getCube(-10, -10, -10, 20, 20, 20), polys);
+        polys = ShapeMaker.addToArrayList(ShapeMaker.getCube(-100, -100, -200, 200, 200, 400), polys);
+        polys = ShapeMaker.addToArrayList(ShapeMaker.getCube(0, -10, 50, 10, 10, 10), polys);
         JPanel p = new JPanel();  
         
         keyboardL.addSelf(f);
@@ -114,7 +116,7 @@ public class Camera {
         }
         if(keyboardL.keyIsDown(27)) {
             isMouseLocked = false;
-            f.setCursor(Cursor.DEFAULT_CURSOR);
+            f.setCursor(Cursor.getDefaultCursor());
         }
         rotateBy(AngleHandler.asQuaternion(new EulerAngle(0, mouseL.getMovedX()/(FPS*2), 0)));
         rotateByLocal(AngleHandler.asQuaternion(new EulerAngle(mouseL.getMovedY()/(FPS*2), 0, 0)));
@@ -153,18 +155,19 @@ public class Camera {
         double minDist = 1000000000;
         boolean hit = false;
         for(Polygon p: polys){
-            double d = isRayIntersecting(p, ray);
-            if(d != 0 && d < minDist){
-                minDist = d;
+            polygonHitInfo d = isRayIntersecting(p, ray);
+            if(d.didHit && d.distance != 0 && d.distance < minDist){
+                minDist = d.distance;
                 hit = true;
-                returnColor = p.color;
+                if(d.isLine) returnColor = new int[]{0, 0, 0};
+                else returnColor = new int[]{(int)(d.u*255), 0, (int)(d.v*255)};
             }
         }
         if(!hit) return new int[3];
         return returnColor;
     }
     
-    private static double isRayIntersecting(Polygon p, Raycast ray){
+    private static polygonHitInfo isRayIntersecting(Polygon p, Raycast ray){
         Vector3D e1 = p.p2.copy().sub(p.p1);
         Vector3D e2 = p.p3.copy().sub(p.p1);
         Vector3D rayDir = AngleHandler.getRotated(new Vector3D(0, 0, 1), ray.direction);
@@ -175,15 +178,18 @@ public class Camera {
         Vector3D s = ray.origin.copy().sub(p.p1);
         double u = invDet * s.dot(normal);
 
-        if ((u < 0 && Math.abs(u) > epsilon) || (u > 1 && Math.abs(u-1) > epsilon)) return 0;
+        if ((u < 0 && Math.abs(u) > epsilon) || (u > 1 && Math.abs(u-1) > epsilon)) return new polygonHitInfo(false);
 
         Vector3D s_cross_e1 = s.copy().cross(e1);
         double v = invDet * rayDir.dot(s_cross_e1);
 
-        if ((v < 0 && Math.abs(v) > epsilon) || (u + v > 1 && Math.abs(u + v - 1) > epsilon)) return 0;
+        if ((v < 0 && Math.abs(v) > epsilon) || (u + v > 1 && Math.abs(u + v - 1) > epsilon)) return new polygonHitInfo(false);
 
         double t = invDet * e2.copy().dot(s_cross_e1);
-        if(t > epsilon) return t;
-        else return 0;
+        if(t > epsilon) {
+            if(u < 0.02 || v < 0.02 || u > 0.98 || v > 0.98 || u+v > 0.98) return new polygonHitInfo(true, u, v, t, normal, true); 
+            return new polygonHitInfo(true, u, v, t, normal, false);
+        }
+        else return new polygonHitInfo(false);
     }
 }
