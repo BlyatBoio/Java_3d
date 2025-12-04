@@ -6,6 +6,8 @@ import java.awt.image.WritableRaster;
 public class PixelPainter extends Component{
     private BufferedImage image;
     private WritableRaster raster;
+    private int[] colors;
+
     public PixelPainter(int screenWidth, int screenHeight){
         image = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_RGB);
         raster = image.getRaster();
@@ -22,17 +24,21 @@ public class PixelPainter extends Component{
         raster.setPixel(x, y, color);
     }
     public void setPixelGroup(int x, int y, int w, int h, int R, int G, int B){
-        for(int xP = x; xP < x + w; xP ++){
-            for(int yP = y; yP < y + h; yP ++){
-                raster.setPixel(xP, yP, new int[]{R, G, B});
-            }
+        colors = new int[w*h*3];
+        for(int i = 0; i < w*h*3; i+=3){
+            colors[i] = R;
+            colors[i+1] = G;
+            colors[i+2] = B;
         }
+        raster.setPixels(x, y, w, h, colors);
     }
     public void setPixelGroup(int x, int y, int w, int h, int[] color){
-        for(int xP = x; xP < x + w; xP ++){
-            for(int yP = y; yP < y + h; yP ++){
-                raster.setPixel(xP, yP, color);
-            }
+        colors = new int[w*h*3];
+        for(int i = 0; i < w*h*3; i+=3){
+            colors[i] = color[0];
+            colors[i+1] = color[1];
+            colors[i+2] = color[2];
         }
+        raster.setPixels(x, y, w, h, colors);
     }
 }

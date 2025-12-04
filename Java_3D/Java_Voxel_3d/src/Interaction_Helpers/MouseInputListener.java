@@ -2,16 +2,19 @@ package Interaction_Helpers;
 
 import java.awt.Component;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class MouseInputListener implements MouseMotionListener{
-    float movedX = 0;
-    float movedY = 0;
-    float prevXPos = 0;
-    float prevYPos = 0;
-    int timeSinceMoved = 0;
+public class MouseInputListener implements MouseMotionListener, MouseListener{
+    private float movedX = 0;
+    private float movedY = 0;
+    private float prevXPos = 0;
+    private float prevYPos = 0;
+    private int timeSinceMoved = 0;
+    private boolean mouseIsDown;
+    
 
     public MouseInputListener(){
         Timer time = new Timer();
@@ -31,6 +34,7 @@ public class MouseInputListener implements MouseMotionListener{
         timeSinceMoved ++;
     }
     public void addSelf(Component component){
+        component.addMouseListener(this);
         component.addMouseMotionListener(this);
     }
     public float getMovedX(){
@@ -52,5 +56,25 @@ public class MouseInputListener implements MouseMotionListener{
 
         prevXPos = e.getXOnScreen();
         prevYPos = e.getYOnScreen();
+    }
+    @Override
+    public void mouseClicked(MouseEvent e) {
+    }
+    @Override
+    public void mousePressed(MouseEvent e) {
+        mouseIsDown = true;
+    }
+    @Override
+    public void mouseReleased(MouseEvent e) {
+        mouseIsDown = false;
+    }
+    public boolean isMouseDown(){
+        return mouseIsDown;
+    }
+    @Override
+    public void mouseEntered(MouseEvent e) {
+    }
+    @Override
+    public void mouseExited(MouseEvent e) {
     }
 }
