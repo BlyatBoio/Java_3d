@@ -23,27 +23,41 @@ import javax.swing.JPanel;
 
 public class Camera {
     @SuppressWarnings("FieldMayBeFinal")
+
+    // Position and rotational variables
     public static Vector3D position = new Vector3D(0, 0, 0);
     public static AxisAngle forward = new AxisAngle(0, 1, 0, 0);
-    public static final int resolution = 5;
+    // Display varibles
+    public static final int resolution = 5; // how many pixels are drawn per ray
     public static final int screenWidth = 1200;
     public static final int screenHeight = 600;
     public static final double aspectRatio = screenWidth / screenHeight;
     public static final int FPS = 60;
     public static final int FPSScaling = 60/FPS;
-    public static PixelPainter painter = new PixelPainter(screenWidth, screenHeight);
-    public static ArrayList<Polygon> polys = new ArrayList<>();
-    private static final double epsilon = 0.0001;
 
+    // Polygon storage and organization
+    public static ArrayList<Polygon> polys = new ArrayList<>();
+    private static ArrayList<Polygon> culledPolys = new ArrayList<>();
+
+    // Pre-defined variables for polygon colision checks
+    private static final double epsilon = 0.0001;
+    private static boolean drawLine = true;
+    private static boolean hit = false;
+    private static double minDist = 100000000;
+    private static int[] returnColor = new int[3];
+    private static polygonHitInfo noHit = new polygonHitInfo(false);
+
+    // Window and JFrame init variables
     private static final JFrame f = new JFrame();
     private static final BufferedImage cursorImg = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
     private static final Cursor blankCursor = Toolkit.getDefaultToolkit().createCustomCursor(
             cursorImg, new Point(0, 0), "blank cursor");
     private static final KeyInputListener keyboardL = new KeyInputListener();      
     private static final MouseInputListener mouseL = new MouseInputListener();
-
+    public static PixelPainter painter = new PixelPainter(screenWidth, screenHeight);
     private static Robot mouseLocker;
     private static boolean isMouseLocked = false;
+
     private static final int[] defaultReturn = new int[3];
     private static boolean keyPressed = false;
 
@@ -108,8 +122,6 @@ public class Camera {
     public static void update(){
         keyPressed = false;
         castRays();
-        // Not this this is very wrong -> roughly, q1 affects y, q2 affects x, and q3 affects zx
-        //rotateBy(new Quaternion(50, 2*mouseL.getMovedY()/FPS, 4*mouseL.getMovedX()/FPS, 0));
         if(mouseL.isMouseDown()) {
             isMouseLocked = true;
             f.setCursor(blankCursor);
@@ -132,29 +144,39 @@ public class Camera {
         }
     }
 
+    private static void cullPolys(){
+        culledPolys.clear();
+        for(Polygon p : polys){  
+            culledPolys.add(p);
+        }
+    }
+
+    private static double dist3D(double x, double y, double z, double x2, double y2, double z2){
+        return Math.sqrt((x2-x)*(x2-x)+(y2-y)*(y2-y)+(z2-z)*(z2-z));
+    }
+
     private static void castRays(){
         painter.setPixelGroup(0, 0, screenWidth, screenHeight, 0, 0, 0);
-        //sortPolys();
+        cullPolys();
+        
+        Quaternion fwd = AngleHandler.asQuaternion(forward);
         for(int x = 0; x < screenWidth/resolution; x++){
             for(int y = 0; y < screenHeight/resolution; y++){
-                int[] color = cast(getRay(x-(screenWidth/resolution)/2, y-(screenHeight/resolution)/2));
-                if(color != defaultReturn) {
-                    painter.setPixelGroup(x*resolution, y*resolution, resolution, resolution, color);
-                }
+                int[] color = cast(getRay(x-(screenWidth/resolution)/2, y-(screenHeight/resolution)/2, fwd));
+                if(color != defaultReturn) painter.setPixelGroup(x*resolution, y*resolution, resolution, resolution, color);
             }
         }
     }
 
-    private static Raycast getRay(int x, int y){
-        //return new Raycast(position.copy().add(AngleHandler.getRotated(new Vector3D(x, y, 0), forward)), forward);
-        return new Raycast(position.copy(), AngleHandler.mult(new Quaternion(10, ((double)y / (screenHeight/resolution)) / aspectRatio, ((double)x / (screenWidth/resolution)), 0), AngleHandler.asQuaternion(forward)));
+    private static Raycast getRay(int x, int y, Quaternion fwd){
+        // Q0 affects FOV
+        return new Raycast(position.copy(), AngleHandler.mult(new Quaternion(3, ((double)y / (screenHeight/resolution)) / aspectRatio, ((double)x / (screenWidth/resolution)), 0), fwd));
     }   
 
     private static int[] cast(Raycast ray){
-        int[] returnColor = new int[3];
-        double minDist = 1000000000;
-        boolean hit = false;
-        for(Polygon p: polys){
+        minDist = 100000000;
+        hit = false;
+        for(Polygon p: culledPolys){
             polygonHitInfo d = isRayIntersecting(p, ray);
             if(d.didHit && d.distance != 0 && d.distance < minDist){
                 minDist = d.distance;
@@ -168,28 +190,22 @@ public class Camera {
     }
     
     private static polygonHitInfo isRayIntersecting(Polygon p, Raycast ray){
-        Vector3D e1 = p.p2.copy().sub(p.p1);
-        Vector3D e2 = p.p3.copy().sub(p.p1);
-        Vector3D rayDir = AngleHandler.getRotated(new Vector3D(0, 0, 1), ray.direction);
-        Vector3D normal = rayDir.copy().cross(e2);
-        double det = e1.dot(normal);
+        Vector3D normal = ray.vect.copy().cross(p.e2);
+        double det = p.e1.dot(normal);
 
         double invDet = 1/det;
         Vector3D s = ray.origin.copy().sub(p.p1);
         double u = invDet * s.dot(normal);
 
-        if ((u < 0 && Math.abs(u) > epsilon) || (u > 1 && Math.abs(u-1) > epsilon)) return new polygonHitInfo(false);
+        if ((u < 0 && Math.abs(u) > epsilon) || (u > 1 && Math.abs(u-1) > epsilon)) return noHit;
 
-        Vector3D s_cross_e1 = s.copy().cross(e1);
-        double v = invDet * rayDir.dot(s_cross_e1);
+        Vector3D s_cross_e1 = s.copy().cross(p.e1);
+        double v = invDet * ray.vect.dot(s_cross_e1);
 
-        if ((v < 0 && Math.abs(v) > epsilon) || (u + v > 1 && Math.abs(u + v - 1) > epsilon)) return new polygonHitInfo(false);
+        if ((v < 0 && Math.abs(v) > epsilon) || (u + v > 1 && Math.abs(u + v - 1) > epsilon)) return noHit;
 
-        double t = invDet * e2.copy().dot(s_cross_e1);
-        if(t > epsilon) {
-            if(u < 0.02 || v < 0.02 || u > 0.98 || v > 0.98 || u+v > 0.98) return new polygonHitInfo(true, u, v, t, normal, true); 
-            return new polygonHitInfo(true, u, v, t, normal, false);
-        }
-        else return new polygonHitInfo(false);
+        double t = invDet * p.e2.copy().dot(s_cross_e1);
+        if(t > epsilon) return new polygonHitInfo(true, u, v, t, normal, (drawLine && (u < 0.02 || v < 0.02 || u > 0.98 || v > 0.98 || u+v > 0.98))); 
+        return noHit;
     }
 }
