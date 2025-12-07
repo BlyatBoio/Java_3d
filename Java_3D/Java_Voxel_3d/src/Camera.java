@@ -1,6 +1,7 @@
 
 import Interaction_Helpers.KeyInputListener;
 import Interaction_Helpers.MouseInputListener;
+import Primatives_3D.Mesh;
 import Primatives_3D.Polygon;
 import Primatives_3D.Raycast;
 import Primatives_3D.ShapeMaker;
@@ -28,17 +29,15 @@ public class Camera {
     public static Vector3D position = new Vector3D(0, 0, 0);
     public static AxisAngle forward = new AxisAngle(0, 1, 0, 0);
     // Display varibles
-    public static final int resolution = 5; // how many pixels are drawn per ray
-    public static final int screenWidth = 1200;
-    public static final int screenHeight = 600;
+    public static final int resolution = 3; // how many pixels are drawn per ray
+    public static final int screenWidth = 800;
+    public static final int screenHeight = 800;
     public static final double aspectRatio = screenWidth / screenHeight;
     public static final int FPS = 60;
     public static final int FPSScaling = 60/FPS;
-
     // Polygon storage and organization
     public static ArrayList<Polygon> polys = new ArrayList<>();
     private static ArrayList<Polygon> culledPolys = new ArrayList<>();
-
     // Pre-defined variables for polygon colision checks
     private static final double epsilon = 0.0001;
     private static boolean drawLine = true;
@@ -46,7 +45,7 @@ public class Camera {
     private static double minDist = 100000000;
     private static int[] returnColor = new int[3];
     private static polygonHitInfo noHit = new polygonHitInfo(false);
-
+    private static final int[] defaultReturn = new int[]{0, 0, 0};
     // Window and JFrame init variables
     private static final JFrame f = new JFrame();
     private static final BufferedImage cursorImg = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
@@ -57,9 +56,9 @@ public class Camera {
     public static PixelPainter painter = new PixelPainter(screenWidth, screenHeight);
     private static Robot mouseLocker;
     private static boolean isMouseLocked = false;
-
-    private static final int[] defaultReturn = new int[3];
     private static boolean keyPressed = false;
+
+    private static Mesh cube1 = ShapeMaker.getCube(10, 10, 50, 10, 10, 10);
 
     public static void rotateBy(Quaternion direction){
         keyPressed = true;
@@ -92,7 +91,7 @@ public class Camera {
     public static void startRenderer(){
 
         polys = ShapeMaker.addToArrayList(ShapeMaker.getCube(-100, -100, -200, 200, 200, 400), polys);
-        polys = ShapeMaker.addToArrayList(ShapeMaker.getCube(0, -10, 50, 10, 10, 10), polys);
+        polys = ShapeMaker.addToArrayList(cube1, polys);
         JPanel p = new JPanel();  
         
         keyboardL.addSelf(f);
@@ -130,6 +129,7 @@ public class Camera {
             isMouseLocked = false;
             f.setCursor(Cursor.getDefaultCursor());
         }
+        cube1.rotate(0, 1, 0);
         rotateBy(AngleHandler.asQuaternion(new EulerAngle(0, mouseL.getMovedX()/(FPS*2), 0)));
         rotateByLocal(AngleHandler.asQuaternion(new EulerAngle(mouseL.getMovedY()/(FPS*2), 0, 0)));
         if(keyboardL.keyIsDown(87)) {moveByLocal(0, 0, 0.5*FPSScaling); keyPressed = true;}
@@ -146,9 +146,14 @@ public class Camera {
 
     private static void cullPolys(){
         culledPolys.clear();
+
         for(Polygon p : polys){  
             culledPolys.add(p);
         }
+    }
+
+    private static boolean isPointWithin(Vector3D point, double x, double y, double z, double w, double h, double l){
+        return (point.x > x && point.x < x + w && point.y > y && point.y < y + h && point.z > z && point.z < z + l);
     }
 
     private static double dist3D(double x, double y, double z, double x2, double y2, double z2){
@@ -163,6 +168,7 @@ public class Camera {
         for(int x = 0; x < screenWidth/resolution; x++){
             for(int y = 0; y < screenHeight/resolution; y++){
                 int[] color = cast(getRay(x-(screenWidth/resolution)/2, y-(screenHeight/resolution)/2, fwd));
+                //if(color != defaultReturn) painter.setPixelGroup(x*resolution, y*resolution, resolution, resolution, color);
                 if(color != defaultReturn) painter.setPixelGroup(x*resolution, y*resolution, resolution, resolution, color);
             }
         }
@@ -181,11 +187,12 @@ public class Camera {
             if(d.didHit && d.distance != 0 && d.distance < minDist){
                 minDist = d.distance;
                 hit = true;
-                if(d.isLine) returnColor = new int[]{0, 0, 0};
-                else returnColor = new int[]{(int)(d.u*255), 0, (int)(d.v*255)};
+                if(d.isLine) returnColor = defaultReturn;
+                //else returnColor = new int[]{(int)(d.u*255), 0, (int)(d.v*255)};
+                else returnColor = p.color;
             }
         }
-        if(!hit) return new int[3];
+        if(!hit) return defaultReturn;
         return returnColor;
     }
     

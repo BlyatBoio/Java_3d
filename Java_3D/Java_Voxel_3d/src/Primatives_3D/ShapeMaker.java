@@ -17,7 +17,7 @@ public class ShapeMaker {
         return polys;
     }
 
-    public static Polygon[] getCube(int x, int y, int z, int w, int h, int l){
+    public static Mesh getCube(int x, int y, int z, int w, int h, int l){
         Polygon[] polys = new Polygon[12];
         setArrayRange(0, 1, polys, getFace(x, y, z, x + w, y, z, x + w, y + h, z, x, y + h, z)); // front
         setArrayRange(2, 3, polys, getFace(x, y, z + l, x + w, y, z + l, x + w, y + h, z + l, x, y + h, z + l)); // back
@@ -25,11 +25,11 @@ public class ShapeMaker {
         setArrayRange(6, 7, polys, getFace(x + w, y, z, x + w, y, z + l, x + w, y + h, z + l, x + w, y + h, z)); // right
         setArrayRange(8, 9, polys, getFace(x, y, z, x + w, y, z, x + w, y, z + l, x, y, z + l)); // top
         setArrayRange(10, 11, polys, getFace(x, y + h, z, x + w, y + h, z, x + w, y + h, z + l, x, y + h, z + l)); // bottom
-        return polys;
+        return new Mesh(polys);
     }
 
-    public static ArrayList<Polygon> addToArrayList(Polygon[] arr, ArrayList<Polygon> list){
-        for(Polygon p : arr){
+    public static ArrayList<Polygon> addToArrayList(Mesh mesh, ArrayList<Polygon> list){
+        for(Polygon p : mesh.polys){
             list.add(p);
         }
         return list;
