@@ -24,7 +24,17 @@ public class Mesh {
 
         this.center = new Vector3D(tx/(this.polys.length*3), ty/(this.polys.length*3), tz/(this.polys.length*3));
     }
+
+    public void moveBy(Vector3D v){
+        for(Polygon p: this.polys){
+            p.p1.add(v);
+            p.p2.add(v);
+            p.p3.add(v);
+        }
+    }
+
     public void rotate(AxisAngle rotation){
+        this.findCenter();
         for(Polygon p : this.polys){
             AngleHandler.getRotatedPolygon(p, this.center, rotation);
         }

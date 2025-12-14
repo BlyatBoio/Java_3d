@@ -102,7 +102,6 @@ public class AngleHandler {
         p.p3 = centerPoint.copy().add(getRotated(p.p3, rot));
     }
 
-
     public static AxisAngle asAxisAngle(Quaternion quat){
         double theta = 2*Math.acos(quat.q0);
         double t = theta/2;
