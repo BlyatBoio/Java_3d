@@ -1,5 +1,6 @@
 package Rotation_3D;
 
+import Primatives_3D.Polygon;
 import Primatives_3D.Vector3D;
 
 public class AngleHandler {
@@ -85,10 +86,22 @@ public class AngleHandler {
     }
     public static Vector3D getRotated(Vector3D vec, RotationMatrix matrix){
         return new Vector3D(
-            vec.z*matrix.get(0,0)+vec.y*matrix.get(1,0)+vec.x*matrix.get(2,0),
-            vec.z*matrix.get(0,1)+vec.y*matrix.get(1,1)+vec.x*matrix.get(2,1),
-            vec.z*matrix.get(0,2)+vec.y*matrix.get(1,2)+vec.x*matrix.get(2,2));
+            (vec.x*matrix.get(0,0))+(vec.y*matrix.get(1,0))+vec.z*matrix.get(2,0),
+            (vec.x*matrix.get(0,1))+(vec.y*matrix.get(1,1))+vec.z*matrix.get(2,1),
+            (vec.x*matrix.get(0,2))+(vec.y*matrix.get(1,2))+vec.z*matrix.get(2,2));
     }
+    public static void getRotatedPolygon(Polygon p, Vector3D centerPoint, AxisAngle angle){
+        RotationMatrix rot = asRotationMatrix(angle);
+
+        p.p1.sub(centerPoint);
+        p.p2.sub(centerPoint);
+        p.p3.sub(centerPoint);
+
+        p.p1 = centerPoint.copy().add(getRotated(p.p1, rot));
+        p.p2 = centerPoint.copy().add(getRotated(p.p2, rot));
+        p.p3 = centerPoint.copy().add(getRotated(p.p3, rot));
+    }
+
 
     public static AxisAngle asAxisAngle(Quaternion quat){
         double theta = 2*Math.acos(quat.q0);

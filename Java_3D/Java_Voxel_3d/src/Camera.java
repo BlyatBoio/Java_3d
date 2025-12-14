@@ -58,7 +58,8 @@ public class Camera {
     private static boolean isMouseLocked = false;
     private static boolean keyPressed = false;
 
-    private static Mesh cube1 = ShapeMaker.getCube(10, 10, 50, 10, 10, 10);
+    private static Mesh cube2 = ShapeMaker.getCube(7, 7, 7, 1, 1, 1);
+    private static Mesh cube1 = ShapeMaker.getCube(5, 5, 5, 10, 10, 10);
 
     public static void rotateBy(Quaternion direction){
         keyPressed = true;
@@ -92,6 +93,7 @@ public class Camera {
 
         polys = ShapeMaker.addToArrayList(ShapeMaker.getCube(-100, -100, -200, 200, 200, 400), polys);
         polys = ShapeMaker.addToArrayList(cube1, polys);
+        polys = ShapeMaker.addToArrayList(cube2, polys);
         JPanel p = new JPanel();  
         
         keyboardL.addSelf(f);
@@ -129,7 +131,7 @@ public class Camera {
             isMouseLocked = false;
             f.setCursor(Cursor.getDefaultCursor());
         }
-        cube1.rotate(0, 1, 0);
+        cube1.rotate(new AxisAngle(0.2, 0, 1, 1));
         rotateBy(AngleHandler.asQuaternion(new EulerAngle(0, mouseL.getMovedX()/(FPS*2), 0)));
         rotateByLocal(AngleHandler.asQuaternion(new EulerAngle(mouseL.getMovedY()/(FPS*2), 0, 0)));
         if(keyboardL.keyIsDown(87)) {moveByLocal(0, 0, 0.5*FPSScaling); keyPressed = true;}
@@ -197,8 +199,12 @@ public class Camera {
     }
     
     private static polygonHitInfo isRayIntersecting(Polygon p, Raycast ray){
-        Vector3D normal = ray.vect.copy().cross(p.e2);
-        double det = p.e1.dot(normal);
+
+        Vector3D e1 = p.p2.copy().sub(p.p1);
+        Vector3D e2 = p.p3.copy().sub(p.p1);
+
+        Vector3D normal = ray.vect.copy().cross(e2);
+        double det = e1.dot(normal);
 
         double invDet = 1/det;
         Vector3D s = ray.origin.copy().sub(p.p1);
@@ -206,12 +212,12 @@ public class Camera {
 
         if ((u < 0 && Math.abs(u) > epsilon) || (u > 1 && Math.abs(u-1) > epsilon)) return noHit;
 
-        Vector3D s_cross_e1 = s.copy().cross(p.e1);
+        Vector3D s_cross_e1 = s.copy().cross(e1);
         double v = invDet * ray.vect.dot(s_cross_e1);
 
         if ((v < 0 && Math.abs(v) > epsilon) || (u + v > 1 && Math.abs(u + v - 1) > epsilon)) return noHit;
 
-        double t = invDet * p.e2.copy().dot(s_cross_e1);
+        double t = invDet * e2.copy().dot(s_cross_e1);
         if(t > epsilon) return new polygonHitInfo(true, u, v, t, normal, (drawLine && (u < 0.02 || v < 0.02 || u > 0.98 || v > 0.98 || u+v > 0.98))); 
         return noHit;
     }
