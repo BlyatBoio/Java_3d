@@ -7,6 +7,7 @@ public class polygonHitInfo{
     public double distance = 0;
     public Vector3D normal = new Vector3D(0, 0, 0);
     public boolean isLine = false;
+    
     public polygonHitInfo(boolean didHit, double u, double v, double distance, Vector3D normal, boolean isLine){
         this.didHit = didHit;
         this.u = u;

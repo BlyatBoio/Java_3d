@@ -30,11 +30,21 @@ public class Camera {
     public static AxisAngle forward = new AxisAngle(0, 1, 0, 0);
     // Display varibles
     public static final int resolution = 3; // how many pixels are drawn per ray
-    public static final int screenWidth = 800;
+    public static final int screenWidth = 1200;
     public static final int screenHeight = 800;
-    public static final double aspectRatio = screenWidth / screenHeight;
-    public static final int FPS = 60;
+    public static final double aspectRatio = (double) screenWidth / screenHeight;
+    public static final int FPS = 30;
     public static final int FPSScaling = 60/FPS;
+    // Constants to reduce computation when casting rays
+    public static final int widthRes = screenWidth/resolution;
+    public static final int halfWidthRes = (screenWidth/resolution)/2;
+    public static final int heightRes = screenHeight/resolution;
+    public static final int halfHeightRes = (screenHeight/resolution)/2;
+
+    // Raycast storage
+    public static Raycast[] rays;
+    public static Quaternion[] raycastRotations;
+
     // Polygon storage and organization
     public static ArrayList<Polygon> polys = new ArrayList<>();
     private static ArrayList<Polygon> culledPolys = new ArrayList<>();
@@ -94,6 +104,9 @@ public class Camera {
         polys = ShapeMaker.addToArrayList(ShapeMaker.getCube(-100, -100, -200, 200, 200, 400), polys);
         polys = ShapeMaker.addToArrayList(cube1, polys);
         polys = ShapeMaker.addToArrayList(cube2, polys);
+
+        defineRays();
+
         JPanel p = new JPanel();  
         
         keyboardL.addSelf(f);
@@ -105,6 +118,7 @@ public class Camera {
         }
     
         f.setSize(screenWidth, screenHeight);
+        f.setLocation(200, 100);
         f.setVisible(true);
         f.add(p);
         f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -142,44 +156,51 @@ public class Camera {
         if(keyboardL.keyIsDown(16)) {moveByLocal(0, -0.05*FPSScaling, 0); keyPressed = true;}
         if(keyPressed == true) painter.repaint();
         if(isMouseLocked){
-            mouseLocker.mouseMove(screenWidth/2, screenHeight/2);
+            mouseLocker.mouseMove(f.getX() + screenWidth/2, f.getY() + screenHeight/2);
         }
     }
 
     private static void cullPolys(){
         culledPolys.clear();
 
-        for(Polygon p : polys){  
+        for(Polygon p : polys){
             culledPolys.add(p);
         }
     }
 
-    private static boolean isPointWithin(Vector3D point, double x, double y, double z, double w, double h, double l){
-        return (point.x > x && point.x < x + w && point.y > y && point.y < y + h && point.z > z && point.z < z + l);
-    }
-
-    private static double dist3D(double x, double y, double z, double x2, double y2, double z2){
-        return Math.sqrt((x2-x)*(x2-x)+(y2-y)*(y2-y)+(z2-z)*(z2-z));
+    private static double dist3D(Vector3D v1, Vector3D v2){
+        return Math.sqrt((v1.x-v2.x)*(v1.x-v2.x)+(v1.y-v2.y)*(v1.y-v2.y)+(v1.z-v2.z)*(v1.z-v2.z));
     }
 
     private static void castRays(){
-        painter.setPixelGroup(0, 0, screenWidth, screenHeight, 0, 0, 0);
         cullPolys();
         
         Quaternion fwd = AngleHandler.asQuaternion(forward);
-        for(int x = 0; x < screenWidth/resolution; x++){
-            for(int y = 0; y < screenHeight/resolution; y++){
-                int[] color = cast(getRay(x-(screenWidth/resolution)/2, y-(screenHeight/resolution)/2, fwd));
-                //if(color != defaultReturn) painter.setPixelGroup(x*resolution, y*resolution, resolution, resolution, color);
-                if(color != defaultReturn) painter.setPixelGroup(x*resolution, y*resolution, resolution, resolution, color);
+        for(int x = 0; x < widthRes; x++){
+            for(int y = 0; y < heightRes; y++){
+                int i = y+x*heightRes;
+                rays[i].set(position.copy(), AngleHandler.mult(raycastRotations[i], fwd));
+                painter.setPixelGroup(x*resolution, y*resolution, resolution, resolution, cast(rays[i]));
             }
         }
     }
 
-    private static Raycast getRay(int x, int y, Quaternion fwd){
-        // Q0 affects FOV
-        return new Raycast(position.copy(), AngleHandler.mult(new Quaternion(3, ((double)y / (screenHeight/resolution)) / aspectRatio, ((double)x / (screenWidth/resolution)), 0), fwd));
-    }   
+    private static void defineRays(){
+        ArrayList<Raycast> tempRays = new ArrayList<>();
+        ArrayList<Quaternion> tempQuats = new ArrayList<>();
+        
+        Quaternion fwd = AngleHandler.asQuaternion(forward);
+        for(int x = 0; x < widthRes; x++){
+            for(int y = 0; y < heightRes; y++){
+                Quaternion quat = new Quaternion(3, ((double)(y-(heightRes/2)) / heightRes) / aspectRatio, ((double)(x-(widthRes/2)) / widthRes), 0);
+                tempQuats.add(quat);
+                tempRays.add(new Raycast(position.copy(), AngleHandler.mult(quat, fwd)));
+            }
+        }
+
+        rays = tempRays.toArray(Raycast[]::new);
+        raycastRotations = tempQuats.toArray(Quaternion[]::new);
+    }
 
     private static int[] cast(Raycast ray){
         minDist = 100000000;
@@ -200,14 +221,14 @@ public class Camera {
     
     private static polygonHitInfo isRayIntersecting(Polygon p, Raycast ray){
 
-        Vector3D e1 = p.p2.copy().sub(p.p1);
-        Vector3D e2 = p.p3.copy().sub(p.p1);
+        Vector3D e1 = p.v2.copy().sub(p.v1);
+        Vector3D e2 = p.v3.copy().sub(p.v1);
 
         Vector3D normal = ray.vect.copy().cross(e2);
         double det = e1.dot(normal);
 
         double invDet = 1/det;
-        Vector3D s = ray.origin.copy().sub(p.p1);
+        Vector3D s = ray.origin.copy().sub(p.v1);
         double u = invDet * s.dot(normal);
 
         if ((u < 0 && Math.abs(u) > epsilon) || (u > 1 && Math.abs(u-1) > epsilon)) return noHit;

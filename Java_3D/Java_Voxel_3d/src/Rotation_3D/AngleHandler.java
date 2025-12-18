@@ -93,13 +93,13 @@ public class AngleHandler {
     public static void getRotatedPolygon(Polygon p, Vector3D centerPoint, AxisAngle angle){
         RotationMatrix rot = asRotationMatrix(angle);
 
-        p.p1.sub(centerPoint);
-        p.p2.sub(centerPoint);
-        p.p3.sub(centerPoint);
+        p.v1.sub(centerPoint);
+        p.v2.sub(centerPoint);
+        p.v3.sub(centerPoint);
 
-        p.p1 = centerPoint.copy().add(getRotated(p.p1, rot));
-        p.p2 = centerPoint.copy().add(getRotated(p.p2, rot));
-        p.p3 = centerPoint.copy().add(getRotated(p.p3, rot));
+        p.v1 = centerPoint.copy().add(getRotated(p.v1, rot));
+        p.v2 = centerPoint.copy().add(getRotated(p.v2, rot));
+        p.v3 = centerPoint.copy().add(getRotated(p.v3, rot));
     }
 
     public static AxisAngle asAxisAngle(Quaternion quat){
